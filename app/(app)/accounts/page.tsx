@@ -46,7 +46,7 @@ export default async function AccountsPage() {
         <SectionCard title="Tarjetas de crédito" description="Utilización, corte y pago para no generar intereses">
           <div className="space-y-4">
             {data.cards.map((card) => (
-              <div key={card.id} className="rounded-[1.75rem] border border-black/5 bg-[#1f2937] p-5 text-white">
+              <div key={card.id} className="rounded-[1.75rem] border border-black/5 bg-[linear-gradient(155deg,#0b1628_0%,#102342_54%,#1098f7_100%)] p-5 text-white shadow-card">
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm uppercase tracking-[0.18em] text-white/60">{card.bank}</p>
@@ -60,7 +60,7 @@ export default async function AccountsPage() {
                 <div className="grid gap-3 text-sm text-white/70 sm:grid-cols-2">
                   <p>Corte: {card.statementClosingDay}</p>
                   <p>Límite pago: {card.paymentDueDay}</p>
-                  <p>No intereses: {formatCurrency(card.statementBalance)}</p>
+                  <p>Pago para no generar intereses: {formatCurrency(card.statementBalance)}</p>
                   <p>Mínimo actual: {formatCurrency(card.minimumDueAmount)}</p>
                   <p>Saldo total: {formatCurrency(card.payoffBalance)}</p>
                 </div>
@@ -69,7 +69,7 @@ export default async function AccountsPage() {
                     <span>Utilización</span>
                     <span>{card.utilizationPct.toFixed(0)}%</span>
                   </div>
-                  <ProgressBar value={card.utilizationPct} tone={card.utilizationPct > 35 ? "warning" : "default"} />
+                  <ProgressBar value={card.utilizationPct} tone="utilization" />
                   <p className="text-xs uppercase tracking-[0.18em] text-white/55">
                     Próximo vencimiento {formatDate(card.nextDueDate)}
                   </p>

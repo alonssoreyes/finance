@@ -1,4 +1,4 @@
-# Gastos App
+# Pennywise
 
 Aplicación full stack de finanzas personales enfocada en uso real diario: tarjetas con fechas de corte y pago, compras a meses sin intereses, deudas, metas de ahorro, flujo proyectado e inteligencia local basada en reglas.
 
@@ -340,7 +340,7 @@ podman rm gastosapp-postgres
 
 ### Usuario demo
 
-- Email: `demo@gastosapp.local`
+- Email: `demo@pennywise.local`
 - Password: `Demo12345!`
 
 ## Scripts

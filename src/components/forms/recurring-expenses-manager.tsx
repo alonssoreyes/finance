@@ -36,8 +36,20 @@ type Option = {
   name: string;
 };
 
+type LoanItem = {
+  id: string;
+  name: string;
+  lender?: string;
+  monthlyPayment: number;
+  paymentDay: number;
+  nextDueDate: string;
+  accountName: string;
+  currentBalance: number;
+};
+
 type Props = {
   items: ExpenseItem[];
+  loanItems: LoanItem[];
   categories: Option[];
   subcategories: Array<{ id: string; name: string; categoryId: string }>;
   accounts: Option[];
@@ -63,6 +75,7 @@ const blankDraft = {
 
 export function RecurringExpensesManager({
   items,
+  loanItems,
   categories,
   subcategories,
   accounts
@@ -76,6 +89,42 @@ export function RecurringExpensesManager({
         ? subcategories.filter((item) => item.categoryId === draft.categoryId)
         : [],
     [draft.categoryId, subcategories]
+  );
+  const timelineItems = useMemo(
+    () =>
+      [
+        ...items.map((item) => ({
+          id: item.id,
+          source: "RECURRING" as const,
+          name: item.name,
+          amount: item.amount,
+          nextDueDate: item.nextDueDate,
+          meta: [
+            item.categoryName,
+            item.subcategoryName,
+            item.paymentAccountName,
+            item.isEssential ? "Obligatorio" : "Prescindible",
+            item.isActive ? "Activo" : "Pausado"
+          ].filter(Boolean) as string[]
+        })),
+        ...loanItems.map((loan) => ({
+          id: loan.id,
+          source: "LOAN" as const,
+          name: loan.name,
+          amount: loan.monthlyPayment,
+          nextDueDate: loan.nextDueDate,
+          meta: [
+            loan.lender ?? "Sin acreedor",
+            loan.accountName,
+            `Saldo ${formatCurrency(loan.currentBalance)}`,
+            `Día ${loan.paymentDay}`
+          ]
+        }))
+      ].sort(
+        (left, right) =>
+          new Date(left.nextDueDate).getTime() - new Date(right.nextDueDate).getTime()
+      ),
+    [items, loanItems]
   );
 
   function startEdit(item: ExpenseItem) {
@@ -269,54 +318,60 @@ export function RecurringExpensesManager({
       <section className="glass-card min-w-0 rounded-[1.75rem] p-5">
         <div className="mb-5">
           <p className="text-sm uppercase tracking-[0.18em] text-ink-muted">
-            Calendario
+            Compromisos
           </p>
           <h2 className="mt-2 text-xl font-semibold text-surface-strong">
-            Próximos cobros
+            Próximos cargos y pagos fijos
           </h2>
         </div>
 
-        {items.length ? (
+        {timelineItems.length ? (
           <div className="space-y-3">
-            {items.map((item) => (
-              <div key={item.id} className="rounded-2xl border border-black/5 bg-white/70 p-4">
+            {timelineItems.map((item) => (
+              <div key={`${item.source}-${item.id}`} className="rounded-2xl border border-black/5 bg-white/70 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-semibold text-surface-strong">{item.name}</p>
-                    <p className="text-sm text-ink-muted">
-                      {item.categoryName}
-                      {item.subcategoryName ? ` · ${item.subcategoryName}` : ""}
-                      {item.paymentAccountName ? ` · ${item.paymentAccountName}` : ""}
-                    </p>
+                    <p className="text-sm text-ink-muted">{item.meta.join(" · ")}</p>
                   </div>
                   <p className="font-semibold text-surface-strong">
                     {formatCurrency(item.amount)}
                   </p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-ink-soft">
-                  <span>{item.frequency}</span>
                   <span>{formatDate(item.nextDueDate, "d MMM yyyy")}</span>
-                  <span>{item.isEssential ? "Obligatorio" : "Prescindible"}</span>
-                  <span>{item.isActive ? "Activo" : "Pausado"}</span>
+                  <span>{item.source === "LOAN" ? "Préstamo" : "Gasto fijo"}</span>
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <Button onClick={() => startEdit(item)} type="button" variant="secondary">
-                    Editar
-                  </Button>
-                  <form action={deleteRecurringExpenseAction}>
-                    <input name="id" type="hidden" value={item.id} />
-                    <Button type="submit" variant="secondary">
-                      Eliminar
+                {item.source === "RECURRING" ? (
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      onClick={() =>
+                        startEdit(items.find((expense) => expense.id === item.id) ?? items[0]!)
+                      }
+                      type="button"
+                      variant="secondary"
+                    >
+                      Editar
                     </Button>
-                  </form>
-                </div>
+                    <form action={deleteRecurringExpenseAction}>
+                      <input name="id" type="hidden" value={item.id} />
+                      <Button type="submit" variant="secondary">
+                        Eliminar
+                      </Button>
+                    </form>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-ink-muted">
+                    Este pago viene de tu módulo de préstamos y se edita desde ahí.
+                  </p>
+                )}
               </div>
             ))}
           </div>
         ) : (
           <EmptyState
-            title="Sin gastos fijos"
-            description="Agrega rentas, suscripciones o cargos periódicos para proyectar mejor tu flujo."
+            title="Sin compromisos fijos"
+            description="Agrega rentas, suscripciones o préstamos para proyectar mejor tu flujo."
           />
         )}
       </section>

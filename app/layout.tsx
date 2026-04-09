@@ -3,18 +3,18 @@ import "./globals.css";
 import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 
 export const metadata: Metadata = {
-  title: "Gastos App",
-  description: "Finanzas personales premium para deuda, tarjetas, MSI, ahorro y proyección de flujo.",
-  applicationName: "Gastos App",
+  title: "Pennywise",
+  description: "Control financiero personal para tarjetas, deuda, ahorro y decisiones futuras con enfoque fintech.",
+  applicationName: "Pennywise",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Gastos App"
+    title: "Pennywise"
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f5f2ea",
+  themeColor: "#f4f8fc",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover"

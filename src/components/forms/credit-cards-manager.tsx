@@ -162,7 +162,7 @@ export function CreditCardsManager({ items }: { items: Item[] }) {
               value={draft.creditLimit}
             />
             <Input
-              label="No intereses actual"
+              label="Pago para no generar intereses"
               name="statementBalance"
               onChange={(event) =>
                 setDraft((current) => ({ ...current, statementBalance: event.target.value }))
@@ -182,6 +182,10 @@ export function CreditCardsManager({ items }: { items: Item[] }) {
               value={draft.payoffBalance}
             />
           </div>
+          <p className="text-sm leading-6 text-ink-muted">
+            `Pago para no generar intereses` es el monto de tu corte vigente que debes cubrir para evitar intereses.
+            `Saldo total` es todo lo que debes hoy en esa tarjeta, incluyendo compras que todavía no vencen.
+          </p>
           <div className="rounded-2xl border border-black/5 bg-black/[0.02] px-4 py-3 text-sm leading-6 text-ink-muted">
             Usa estos campos para capturar tu estado actual del corte.
             Si hoy es 8 y una tarjeta vence el 14, registra aquí el monto mínimo, el monto para no generar intereses y la fecha real de vencimiento.
@@ -246,7 +250,7 @@ export function CreditCardsManager({ items }: { items: Item[] }) {
               value={draft.paymentTracking}
             >
               <option value="MINIMUM">Mínimo</option>
-              <option value="FULL_STATEMENT">No intereses</option>
+              <option value="FULL_STATEMENT">Pago para no generar intereses</option>
               <option value="BOTH">Ambos</option>
             </Select>
           </div>
@@ -289,7 +293,7 @@ export function CreditCardsManager({ items }: { items: Item[] }) {
         {items.length ? (
           <div className="space-y-3">
             {items.map((item) => (
-              <div key={item.id} className="rounded-[1.6rem] border border-black/5 bg-[#1f2937] p-4 text-white">
+              <div key={item.id} className="rounded-[1.6rem] border border-black/5 bg-[linear-gradient(155deg,#0b1628_0%,#102342_54%,#1098f7_100%)] p-4 text-white shadow-card">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="font-semibold">{item.name}</p>

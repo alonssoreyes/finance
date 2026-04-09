@@ -5,17 +5,17 @@ import { signInAction } from "@/actions/auth";
 export default function SignInPage() {
   return (
     <div className="grid w-full max-w-5xl gap-10 lg:grid-cols-[1.2fr_0.8fr]">
-      <section className="hidden rounded-[2rem] border border-white/60 bg-[radial-gradient(circle_at_top_left,_rgba(183,140,86,0.22),_transparent_25%),linear-gradient(160deg,_rgba(251,248,242,0.96),_rgba(236,230,216,0.84))] p-10 shadow-card lg:block">
+      <section className="hidden rounded-[2rem] border border-white/60 bg-[radial-gradient(circle_at_top_left,_rgba(16,152,247,0.22),_transparent_24%),radial-gradient(circle_at_bottom_right,_rgba(20,200,178,0.18),_transparent_28%),linear-gradient(160deg,_rgba(255,255,255,0.96),_rgba(231,239,248,0.9))] p-10 shadow-card lg:block">
         <div className="flex h-full flex-col justify-between">
           <div>
             <p className="mb-3 text-sm uppercase tracking-[0.24em] text-ink-muted">
-              Gastos App
+              Pennywise
             </p>
-            <h1 className="max-w-xl font-display text-5xl leading-tight text-surface-strong">
-              Finanzas personales con foco real en deuda, flujo y decisiones futuras.
+            <h1 className="max-w-xl text-5xl font-semibold leading-tight tracking-[-0.05em] text-surface-strong">
+              A sharper way to manage cards, debt and forward cash flow.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-ink-muted">
-              Diseñada para tarjetas con fechas de corte, compras a MSI, metas de ahorro y recomendaciones accionables.
+              Built for real personal finance: statement dates, installment purchases, savings goals and purchase decisions with context.
             </p>
           </div>
 
@@ -40,11 +40,11 @@ export default function SignInPage() {
           <p className="text-sm uppercase tracking-[0.24em] text-ink-muted">
             Acceso
           </p>
-          <h2 className="mt-3 font-display text-4xl text-surface-strong">
+          <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-surface-strong">
             Inicia sesión
           </h2>
           <p className="mt-3 text-sm leading-6 text-ink-muted">
-            Demo incluida: <span className="font-semibold">demo@gastosapp.local</span> /{" "}
+            Demo incluida: <span className="font-semibold">demo@pennywise.local</span> /{" "}
             <span className="font-semibold">Demo12345!</span>
           </p>
         </div>

@@ -33,7 +33,7 @@ async function main() {
 
   const user = await prisma.user.create({
     data: {
-      email: "demo@gastosapp.local",
+      email: "demo@pennywise.local",
       passwordHash,
       name: "Alonso Reyes",
       role: Role.USER,
@@ -49,15 +49,15 @@ async function main() {
   });
 
   const categories = await Promise.all([
-    prisma.category.create({ data: { userId: user.id, name: "Nómina", kind: CategoryKind.INCOME, icon: "WalletCards", color: "#335C4B", isSystem: true } }),
-    prisma.category.create({ data: { userId: user.id, name: "Supermercado", kind: CategoryKind.EXPENSE, icon: "ShoppingBasket", color: "#6D8B74" } }),
-    prisma.category.create({ data: { userId: user.id, name: "Comida fuera", kind: CategoryKind.EXPENSE, icon: "UtensilsCrossed", color: "#B78C56" } }),
-    prisma.category.create({ data: { userId: user.id, name: "Transporte", kind: CategoryKind.EXPENSE, icon: "CarFront", color: "#677489" } }),
-    prisma.category.create({ data: { userId: user.id, name: "Servicios", kind: CategoryKind.EXPENSE, icon: "ReceiptText", color: "#8C7A5B" } }),
-    prisma.category.create({ data: { userId: user.id, name: "Seguros", kind: CategoryKind.EXPENSE, icon: "ShieldCheck", color: "#43617A" } }),
-    prisma.category.create({ data: { userId: user.id, name: "MSI", kind: CategoryKind.DEBT, icon: "CalendarSync", color: "#8C4A46" } }),
-    prisma.category.create({ data: { userId: user.id, name: "Ahorro", kind: CategoryKind.SAVINGS, icon: "PiggyBank", color: "#335C4B" } }),
-    prisma.category.create({ data: { userId: user.id, name: "Pago de deuda", kind: CategoryKind.DEBT, icon: "Landmark", color: "#7B5E46" } })
+    prisma.category.create({ data: { userId: user.id, name: "Nómina", kind: CategoryKind.INCOME, icon: "WalletCards", color: "#1098F7", isSystem: true } }),
+    prisma.category.create({ data: { userId: user.id, name: "Supermercado", kind: CategoryKind.EXPENSE, icon: "ShoppingBasket", color: "#14C8B2" } }),
+    prisma.category.create({ data: { userId: user.id, name: "Comida fuera", kind: CategoryKind.EXPENSE, icon: "UtensilsCrossed", color: "#0EA5A4" } }),
+    prisma.category.create({ data: { userId: user.id, name: "Transporte", kind: CategoryKind.EXPENSE, icon: "CarFront", color: "#3B82F6" } }),
+    prisma.category.create({ data: { userId: user.id, name: "Servicios", kind: CategoryKind.EXPENSE, icon: "ReceiptText", color: "#38BDF8" } }),
+    prisma.category.create({ data: { userId: user.id, name: "Seguros", kind: CategoryKind.EXPENSE, icon: "ShieldCheck", color: "#1D4ED8" } }),
+    prisma.category.create({ data: { userId: user.id, name: "MSI", kind: CategoryKind.DEBT, icon: "CalendarSync", color: "#F25F5C" } }),
+    prisma.category.create({ data: { userId: user.id, name: "Ahorro", kind: CategoryKind.SAVINGS, icon: "PiggyBank", color: "#14C8B2" } }),
+    prisma.category.create({ data: { userId: user.id, name: "Pago de deuda", kind: CategoryKind.DEBT, icon: "Landmark", color: "#0F172A" } })
   ]);
 
   const payroll = categories.find((item) => item.name === "Nómina")!;
@@ -77,9 +77,9 @@ async function main() {
   });
 
   const tags = await Promise.all([
-    prisma.tag.create({ data: { userId: user.id, name: "Quincena", color: "#335C4B" } }),
-    prisma.tag.create({ data: { userId: user.id, name: "Planeado", color: "#677489" } }),
-    prisma.tag.create({ data: { userId: user.id, name: "Impulso", color: "#8C4A46" } })
+    prisma.tag.create({ data: { userId: user.id, name: "Quincena", color: "#14C8B2" } }),
+    prisma.tag.create({ data: { userId: user.id, name: "Planeado", color: "#64748B" } }),
+    prisma.tag.create({ data: { userId: user.id, name: "Impulso", color: "#F25F5C" } })
   ]);
 
   const checking = await prisma.account.create({
@@ -90,7 +90,7 @@ async function main() {
       institution: "BBVA",
       currentBalance: 42150,
       availableBalance: 42150,
-      color: "#335C4B",
+      color: "#1098F7",
       icon: "Wallet"
     }
   });
@@ -102,7 +102,7 @@ async function main() {
       type: AccountType.CASH,
       currentBalance: 2450,
       availableBalance: 2450,
-      color: "#B78C56",
+      color: "#14C8B2",
       icon: "Banknote"
     }
   });
@@ -115,7 +115,7 @@ async function main() {
       institution: "Hey Banco",
       currentBalance: 18600,
       availableBalance: 18600,
-      color: "#6D8B74",
+      color: "#1D4ED8",
       icon: "PiggyBank"
     }
   });
@@ -144,7 +144,7 @@ async function main() {
       institution: "Nu",
       currentBalance: -68400,
       availableBalance: -68400,
-      color: "#7B5E46",
+      color: "#0F172A",
       icon: "Landmark",
       isLiquid: false
     }
@@ -198,7 +198,7 @@ async function main() {
       targetDate: addMonths(now, 8),
       priority: Priority.CRITICAL,
       monthlySuggestedContribution: 6000,
-      color: "#335C4B",
+      color: "#14C8B2",
       icon: "Shield"
     }
   });
@@ -213,7 +213,7 @@ async function main() {
       targetDate: addMonths(now, 5),
       priority: Priority.MEDIUM,
       monthlySuggestedContribution: 2500,
-      color: "#B78C56",
+      color: "#1098F7",
       icon: "Smartphone"
     }
   });

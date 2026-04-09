@@ -126,7 +126,7 @@ export function TaxonomyManager({ categories, subcategories, tags }: Props) {
               label="Color"
               name="color"
               onChange={(event) => setCategoryDraft((current) => ({ ...current, color: event.target.value }))}
-              placeholder="#335C4B"
+              placeholder="#1098F7"
               value={categoryDraft.color}
             />
             <Input
@@ -316,7 +316,7 @@ export function TaxonomyManager({ categories, subcategories, tags }: Props) {
             label="Color"
             name="color"
             onChange={(event) => setTagDraft((current) => ({ ...current, color: event.target.value }))}
-            placeholder="#B78C56"
+            placeholder="#14C8B2"
             value={tagDraft.color}
           />
           {tagState.error ? (

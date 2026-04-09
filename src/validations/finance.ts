@@ -214,6 +214,15 @@ export const upsertInstallmentPurchaseSchema = z.object({
   notes: optionalString
 });
 
+export const createCardPaymentSchema = z.object({
+  cardId: z.string().min(1, "Tarjeta inválida."),
+  sourceAccountId: z.string().min(1, "Selecciona la cuenta desde la que pagaste."),
+  postedAt: z.string().min(1, "La fecha de pago es obligatoria."),
+  amount: z.coerce.number().positive("El monto debe ser mayor a 0."),
+  description: optionalString,
+  notes: optionalString
+});
+
 export const upsertSettingsSchema = z.object({
   currency: z.string().trim().min(3, "La moneda es obligatoria.").max(8),
   locale: z.string().trim().min(2, "El locale es obligatorio."),

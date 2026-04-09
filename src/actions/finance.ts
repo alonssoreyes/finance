@@ -11,6 +11,7 @@ import {
   upsertAccountSchema,
   upsertBudgetSchema,
   upsertCategorySchema,
+  createCardPaymentSchema,
   upsertCreditCardSchema,
   upsertFinancialRuleSchema,
   upsertGoalSchema,
@@ -117,6 +118,49 @@ async function adjustSavingsGoal(
   });
 }
 
+async function adjustCreditCardPaymentBalances(
+  tx: Prisma.TransactionClient,
+  destinationAccountId: string,
+  amountDelta: number
+) {
+  const card = await tx.creditCard.findFirst({
+    where: { accountId: destinationAccountId },
+    select: {
+      id: true,
+      creditLimit: true,
+      payoffBalance: true,
+      statementBalance: true,
+      minimumDueAmount: true
+    }
+  });
+
+  if (!card) {
+    return;
+  }
+
+  const payoffBalance = Math.max(Number(card.payoffBalance.toString()) - amountDelta, 0);
+  const statementBalance = Math.max(Number(card.statementBalance.toString()) - amountDelta, 0);
+  const minimumDueAmount = Math.max(Number(card.minimumDueAmount?.toString() ?? "0") - amountDelta, 0);
+
+  await tx.creditCard.update({
+    where: { id: card.id },
+    data: {
+      payoffBalance,
+      statementBalance,
+      minimumDueAmount
+    }
+  });
+
+  await tx.account.update({
+    where: { id: destinationAccountId },
+    data: {
+      currentBalance: -payoffBalance,
+      availableBalance: Number(card.creditLimit.toString()) - payoffBalance,
+      creditLimit: Number(card.creditLimit.toString())
+    }
+  });
+}
+
 async function applyTransactionEffects(
   tx: Prisma.TransactionClient,
   input: EffectInput,
@@ -144,6 +188,9 @@ async function applyTransactionEffects(
       }
       if (input.destinationAccountId) {
         await adjustAccountBalance(tx, input.destinationAccountId, signedAmount);
+      }
+      if (input.type === "CREDIT_CARD_PAYMENT" && input.destinationAccountId) {
+        await adjustCreditCardPaymentBalances(tx, input.destinationAccountId, signedAmount);
       }
       if (input.type === "SAVINGS_CONTRIBUTION" && input.savingsGoalId) {
         await adjustSavingsGoal(tx, input.savingsGoalId, signedAmount);
@@ -1506,6 +1553,97 @@ export async function settleInstallmentPurchaseAction(formData: FormData) {
   revalidatePath("/debts");
   revalidatePath(`/cards/${purchase.creditCardId}`);
   redirect("/installments");
+}
+
+export async function createCardPaymentAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser();
+  const parsed = createCardPaymentSchema.safeParse({
+    cardId: formData.get("cardId"),
+    sourceAccountId: formData.get("sourceAccountId"),
+    postedAt: formData.get("postedAt"),
+    amount: formData.get("amount"),
+    description: formData.get("description"),
+    notes: formData.get("notes")
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "No se pudo registrar el pago."
+    };
+  }
+
+  const payload = parsed.data;
+
+  const card = await prisma.creditCard.findFirst({
+    where: { id: payload.cardId, userId: user.id },
+    select: {
+      id: true,
+      name: true,
+      accountId: true
+    }
+  });
+
+  if (!card) {
+    return {
+      error: "Tarjeta no encontrada."
+    };
+  }
+
+  const debtCategory = await prisma.category.findFirst({
+    where: {
+      userId: user.id,
+      kind: "DEBT",
+      name: "Pago de deuda"
+    },
+    select: { id: true }
+  });
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const created = await tx.transaction.create({
+        data: {
+          userId: user.id,
+          postedAt: new Date(payload.postedAt),
+          amount: payload.amount,
+          type: "CREDIT_CARD_PAYMENT",
+          cadence: "ONE_TIME",
+          planning: "PLANNED",
+          description:
+            cleanString(payload.description) ?? `Abono a tarjeta ${card.name}`,
+          notes: cleanString(payload.notes),
+          categoryId: debtCategory?.id,
+          sourceAccountId: payload.sourceAccountId,
+          destinationAccountId: card.accountId
+        }
+      });
+
+      await applyTransactionEffects(
+        tx,
+        {
+          type: created.type,
+          amount: Number(created.amount.toString()),
+          sourceAccountId: created.sourceAccountId,
+          destinationAccountId: created.destinationAccountId
+        },
+        1
+      );
+    });
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "No se pudo registrar el pago."
+    };
+  }
+
+  revalidatePath("/transactions");
+  revalidatePath("/dashboard");
+  revalidatePath("/projection");
+  revalidatePath("/accounts");
+  revalidatePath("/debts");
+  revalidatePath(`/cards/${card.id}`);
+  redirect(`/cards/${card.id}`);
 }
 
 export async function upsertSettingsAction(

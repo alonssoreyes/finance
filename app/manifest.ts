@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Gastos App",
-    short_name: "Gastos",
-    description: "Control financiero personal con deuda, tarjetas, MSI, metas y flujo proyectado.",
+    name: "Pennywise",
+    short_name: "Pennywise",
+    description: "Control financiero personal para deuda, tarjetas, MSI, metas y flujo proyectado.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f5f2ea",
-    theme_color: "#f5f2ea",
+    background_color: "#f4f8fc",
+    theme_color: "#f4f8fc",
     orientation: "portrait",
     lang: "es-MX",
     icons: [

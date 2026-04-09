@@ -45,17 +45,17 @@ export function AppShell({ user, children }: Props) {
             <LogoMark />
             <div>
               <p className="text-sm uppercase tracking-[0.22em] text-ink-muted">
-                Gastos App
+                Pennywise
               </p>
-              <p className="text-sm text-ink-muted">Control y proyección</p>
+              <p className="text-sm text-ink-muted">Debt. Flow. Clarity.</p>
             </div>
           </div>
 
           <SidebarNav items={navItems} />
 
-          <div className="mt-auto rounded-[1.5rem] border border-black/5 bg-white/70 p-4">
+          <div className="mt-auto rounded-[1.5rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(244,248,252,0.94))] p-4">
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-surface-strong">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(145deg,#dcecff,#eef6ff)] text-surface-strong">
                 {user.name.slice(0, 1)}
               </div>
               <div className="min-w-0">
@@ -76,15 +76,15 @@ export function AppShell({ user, children }: Props) {
         <header className="glass-card mb-6 flex items-center justify-between rounded-[1.6rem] px-4 py-4 md:px-6">
           <div>
             <p className="text-sm uppercase tracking-[0.22em] text-ink-muted">
-              Resumen diario
+              Finance cockpit
             </p>
-            <h1 className="mt-1 font-display text-2xl text-surface-strong">
+            <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-surface-strong">
               Hola, {user.name.split(" ")[0]}
             </h1>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="relative flex h-11 w-11 items-center justify-center rounded-full border border-black/5 bg-white/70 text-surface-strong">
+            <button className="relative flex h-11 w-11 items-center justify-center rounded-full border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(231,239,248,0.9))] text-surface-strong">
               <Bell className="h-5 w-5" />
             </button>
           </div>

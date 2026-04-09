@@ -150,7 +150,7 @@ export default async function DashboardPage() {
                 <div className="grid gap-2 text-sm text-ink-muted sm:grid-cols-2">
                   <p>Ingreso: {formatCurrency(month.income)}</p>
                   <p>Fijos: {formatCurrency(month.fixed)}</p>
-                  <p>Deuda + MSI: {formatCurrency(month.debt + month.installments)}</p>
+                  <p>Tarjetas, préstamos + MSI: {formatCurrency(month.debt + month.installments)}</p>
                   <p>Ahorro: {formatCurrency(month.savings)}</p>
                 </div>
                 <div className="mt-4">

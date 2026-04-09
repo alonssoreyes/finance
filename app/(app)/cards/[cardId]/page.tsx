@@ -1,4 +1,5 @@
 import { CardPurchaseSimulator } from "@/components/simulators/card-purchase-simulator";
+import { CardPaymentManager } from "@/components/forms/card-payment-manager";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -40,9 +41,9 @@ export default async function CardDetailPage({
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SectionCard title="Utilización" description={`${data.utilizationPct.toFixed(0)}%`}>
-          <ProgressBar value={data.utilizationPct} />
+          <ProgressBar value={data.utilizationPct} tone="utilization" />
         </SectionCard>
-        <SectionCard title="No intereses" description={formatCurrency(data.statementBalance)}>
+        <SectionCard title="Pago para no generar intereses" description={formatCurrency(data.statementBalance)}>
           <p className="text-sm text-ink-muted">Vence el {formatDate(data.nextDueDate)}</p>
         </SectionCard>
         <SectionCard title="Pago mínimo" description={formatCurrency(data.minimumDueAmount)}>
@@ -143,6 +144,17 @@ export default async function CardDetailPage({
 
       <SectionCard title="Simulador de compra en tarjeta" description="En qué corte cae y cuándo te pegaría en flujo">
         <CardPurchaseSimulator context={data.simulatorContext} />
+      </SectionCard>
+
+      <SectionCard title="Abonos a la tarjeta" description="Registra pagos y actualiza el saldo al momento">
+        <CardPaymentManager
+          cardId={data.id}
+          cardName={data.name}
+          currentMinimumDue={data.minimumDueAmount}
+          currentStatementBalance={data.statementBalance}
+          recentPayments={data.recentPayments}
+          sourceAccounts={data.sourceAccounts}
+        />
       </SectionCard>
     </div>
   );

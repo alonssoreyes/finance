@@ -11,112 +11,112 @@ const DEFAULT_CATEGORIES: Array<{
     name: "Nómina",
     kind: "INCOME",
     icon: "WalletCards",
-    color: "#335C4B"
+    color: "#1098F7"
   },
   {
     name: "Freelance",
     kind: "INCOME",
     icon: "BriefcaseBusiness",
-    color: "#5D7B6F"
+    color: "#14C8B2"
   },
   {
     name: "Vivienda",
     kind: "EXPENSE",
     icon: "House",
-    color: "#667A8A",
+    color: "#2563EB",
     subcategories: ["Renta", "Hipoteca", "Mantenimiento"]
   },
   {
     name: "Comida",
     kind: "EXPENSE",
     icon: "UtensilsCrossed",
-    color: "#B78C56",
+    color: "#0EA5A4",
     subcategories: ["Restaurantes", "Cafeterías", "Delivery"]
   },
   {
     name: "Despensa",
     kind: "EXPENSE",
     icon: "ShoppingBasket",
-    color: "#6D8B74",
+    color: "#14C8B2",
     subcategories: ["Supermercado", "Club de precios"]
   },
   {
     name: "Suscripciones",
     kind: "EXPENSE",
     icon: "BadgeDollarSign",
-    color: "#6B7280",
+    color: "#64748B",
     subcategories: ["Streaming", "Cloud", "Apps"]
   },
   {
     name: "Transporte",
     kind: "EXPENSE",
     icon: "CarFront",
-    color: "#677489",
+    color: "#3B82F6",
     subcategories: ["Gasolina", "Uber / Taxi", "Estacionamiento"]
   },
   {
     name: "Servicios",
     kind: "EXPENSE",
     icon: "ReceiptText",
-    color: "#8C7A5B",
+    color: "#38BDF8",
     subcategories: ["Luz", "Internet", "Agua", "Telefonía"]
   },
   {
     name: "Salud",
     kind: "EXPENSE",
     icon: "HeartPulse",
-    color: "#8C5C5C",
+    color: "#F25F5C",
     subcategories: ["Farmacia", "Consulta", "Seguro médico"]
   },
   {
     name: "Entretenimiento",
     kind: "EXPENSE",
     icon: "Film",
-    color: "#7A6C8E",
+    color: "#60A5FA",
     subcategories: ["Cine", "Eventos", "Videojuegos"]
   },
   {
     name: "Educación",
     kind: "EXPENSE",
     icon: "GraduationCap",
-    color: "#51718A",
+    color: "#0F766E",
     subcategories: ["Cursos", "Libros", "Plataformas"]
   },
   {
     name: "Seguros",
     kind: "EXPENSE",
     icon: "ShieldCheck",
-    color: "#43617A",
+    color: "#1D4ED8",
     subcategories: ["Auto", "Salud", "Vida"]
   },
   {
     name: "MSI",
     kind: "DEBT",
     icon: "CalendarSync",
-    color: "#8C4A46",
+    color: "#F25F5C",
     subcategories: ["Tecnología", "Hogar", "Viajes"]
   },
   {
     name: "Pago de deuda",
     kind: "DEBT",
     icon: "Landmark",
-    color: "#7B5E46",
+    color: "#0F172A",
     subcategories: ["Tarjeta", "Préstamo personal"]
   },
   {
     name: "Ahorro",
     kind: "SAVINGS",
     icon: "PiggyBank",
-    color: "#335C4B",
+    color: "#14C8B2",
     subcategories: ["Fondo de emergencia", "Compra planeada", "Seguro anual"]
   }
 ];
 
 const DEFAULT_TAGS = [
-  { name: "Fijo", color: "#335C4B" },
-  { name: "Planeado", color: "#677489" },
-  { name: "Impulso", color: "#8C4A46" },
-  { name: "Quincena", color: "#5D7B6F" }
+  { name: "Fijo", color: "#1098F7" },
+  { name: "Planeado", color: "#64748B" },
+  { name: "Impulso", color: "#F25F5C" },
+  { name: "Quincena", color: "#14C8B2" }
 ];
 
 type DefaultsDb = PrismaClient | Prisma.TransactionClient;

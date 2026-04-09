@@ -1,3 +1,4 @@
+import { addMonths, setDate, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/utils";
 
@@ -7,6 +8,34 @@ function getRuleConfigValue<T>(config: unknown, key: string) {
   }
 
   return (config as Record<string, T | undefined>)[key];
+}
+
+function getMonthlyRecurringAmount(frequency: string, amount: number) {
+  switch (frequency) {
+    case "WEEKLY":
+      return amount * 4.33;
+    case "BIWEEKLY":
+      return amount * 2.17;
+    case "QUARTERLY":
+      return amount / 3;
+    case "SEMIANNUALLY":
+      return amount / 6;
+    case "YEARLY":
+      return amount / 12;
+    default:
+      return amount;
+  }
+}
+
+function getNextLoanDueDate(paymentDay: number, reference = new Date()) {
+  const today = startOfDay(reference);
+  const currentMonthDueDate = setDate(today, Math.min(Math.max(paymentDay, 1), 28));
+
+  if (currentMonthDueDate >= today) {
+    return currentMonthDueDate;
+  }
+
+  return setDate(addMonths(today, 1), Math.min(Math.max(paymentDay, 1), 28));
 }
 
 export async function getTransactionsManagementData(userId: string) {
@@ -90,7 +119,7 @@ export async function getTransactionsManagementData(userId: string) {
 }
 
 export async function getRecurringExpensesManagementData(userId: string) {
-  const [items, categories, subcategories, accounts] = await prisma.$transaction([
+  const [items, categories, subcategories, accounts, loans] = await prisma.$transaction([
     prisma.recurringExpense.findMany({
       where: { userId },
       include: {
@@ -111,8 +140,23 @@ export async function getRecurringExpensesManagementData(userId: string) {
     prisma.account.findMany({
       where: { userId, isArchived: false },
       orderBy: { name: "asc" }
+    }),
+    prisma.loan.findMany({
+      where: { userId },
+      include: { account: true },
+      orderBy: { paymentDay: "asc" }
     })
   ]);
+
+  const activeRecurringItems = items.filter((item) => item.isActive);
+  const recurringMonthlyTotal = activeRecurringItems.reduce(
+    (sum, item) => sum + getMonthlyRecurringAmount(item.frequency, toNumber(item.amount)),
+    0
+  );
+  const essentialMonthlyTotal = activeRecurringItems
+    .filter((item) => item.isEssential)
+    .reduce((sum, item) => sum + getMonthlyRecurringAmount(item.frequency, toNumber(item.amount)), 0);
+  const loansMonthlyTotal = loans.reduce((sum, loan) => sum + toNumber(loan.monthlyPayment), 0);
 
   return {
     items: items.map((item) => ({
@@ -145,7 +189,25 @@ export async function getRecurringExpensesManagementData(userId: string) {
     accounts: accounts.map((account) => ({
       id: account.id,
       name: account.name
-    }))
+    })),
+    loanItems: loans.map((loan) => ({
+      id: loan.id,
+      name: loan.name,
+      lender: loan.lender ?? undefined,
+      monthlyPayment: toNumber(loan.monthlyPayment),
+      paymentDay: loan.paymentDay,
+      nextDueDate: getNextLoanDueDate(loan.paymentDay).toISOString(),
+      accountName: loan.account.name,
+      currentBalance: toNumber(loan.currentBalance)
+    })),
+    summary: {
+      recurringMonthlyTotal,
+      essentialMonthlyTotal,
+      loansMonthlyTotal,
+      totalCommittedMonthly: recurringMonthlyTotal + loansMonthlyTotal,
+      recurringCount: activeRecurringItems.length,
+      loanCount: loans.length
+    }
   };
 }
 

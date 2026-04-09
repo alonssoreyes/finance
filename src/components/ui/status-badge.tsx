@@ -12,9 +12,9 @@ export function StatusBadge({ tone = "default", children }: Props) {
         "inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
         tone === "default" && "bg-black/5 text-surface-strong",
         tone === "positive" && "bg-accent-soft text-accent",
-        tone === "warning" && "bg-[#F3E7D7] text-accent-warm",
-        tone === "danger" && "bg-[#F0DEDC] text-accent-danger",
-        tone === "info" && "bg-[#E4EBF2] text-[#43617A]"
+        tone === "warning" && "bg-[#DCF9F4] text-accent-warm",
+        tone === "danger" && "bg-[#FDE7E6] text-accent-danger",
+        tone === "info" && "bg-[#E8F3FF] text-[#1D4ED8]"
       )}
     >
       {children}

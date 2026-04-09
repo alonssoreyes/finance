@@ -8,11 +8,11 @@ export default function SignUpPage() {
       <p className="text-sm uppercase tracking-[0.24em] text-ink-muted">
         Nueva cuenta
       </p>
-      <h1 className="mt-3 font-display text-4xl text-surface-strong">
+      <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-surface-strong">
         Configura tu espacio financiero
       </h1>
       <p className="mt-3 text-sm leading-6 text-ink-muted">
-        La arquitectura ya queda lista para OAuth futuro, pero hoy puedes entrar con email y contraseña sin depender de servicios externos.
+        Pennywise queda listo para operar con email y contraseña hoy, y conservar espacio para OAuth o integraciones futuras después.
       </p>
 
       <div className="mt-8">

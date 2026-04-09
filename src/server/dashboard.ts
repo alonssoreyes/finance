@@ -1,4 +1,4 @@
-import { addDays, addMonths, endOfMonth, isSameMonth, startOfMonth } from "date-fns";
+import { addDays, addMonths, addWeeks, endOfMonth, isSameMonth, setDate, startOfDay, startOfMonth } from "date-fns";
 import { BudgetScope, CategoryKind, InsightStatus, type Account, type Budget, type CreditCard, type FinancialRule, type InstallmentPayment, type InstallmentPurchase, type Loan, type PlannedPurchase, type PurchaseSeasonality, type RecurringExpense, type SavingsGoal, type SpendingInsight, type Transaction } from "@prisma/client";
 import { getPurchaseCycleSummary } from "@/lib/card-cycle";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +19,14 @@ type RealtimeInsight = {
   message: string;
   severity: "INFO" | "WARNING" | "CRITICAL" | "POSITIVE";
   scopes: InsightScope[];
+};
+
+type ScheduledObligation = {
+  title: string;
+  dueDate: Date;
+  amount: number;
+  bucket: "fixed" | "debt" | "installments" | "savings";
+  kind: "Fijo" | "Préstamo" | "Tarjeta" | "MSI" | "Ahorro";
 };
 
 function firstDayOfMonth(input = new Date()) {
@@ -48,6 +56,199 @@ function getMonthlyRecurringAmount(frequency: string, amount: number) {
     default:
       return amount;
   }
+}
+
+function clampDayToMonth(input: Date, day: number) {
+  const monthStart = startOfMonth(input);
+  const lastDay = endOfMonth(monthStart).getDate();
+  return setDate(monthStart, Math.min(Math.max(day, 1), lastDay));
+}
+
+function advanceRecurringDate(date: Date, frequency: string) {
+  switch (frequency) {
+    case "WEEKLY":
+      return addWeeks(date, 1);
+    case "BIWEEKLY":
+      return addWeeks(date, 2);
+    case "QUARTERLY":
+      return addMonths(date, 3);
+    case "SEMIANNUALLY":
+      return addMonths(date, 6);
+    case "YEARLY":
+      return addMonths(date, 12);
+    default:
+      return addMonths(date, 1);
+  }
+}
+
+function getCardCommittedAmount(card: CreditCard) {
+  const statementAmount = toNumber(card.statementBalance);
+  const minimumAmount = toNumber(card.minimumDueAmount);
+
+  if (card.paymentTracking === "MINIMUM") {
+    return minimumAmount > 0 ? minimumAmount : statementAmount;
+  }
+
+  if (card.paymentTracking === "FULL_STATEMENT") {
+    return statementAmount;
+  }
+
+  return Math.max(statementAmount, minimumAmount);
+}
+
+function getCurrentLoanDueDate(
+  loan: Loan,
+  now: Date,
+  transactions: TransactionWithCategory[]
+) {
+  const today = startOfDay(now);
+  const currentMonthDueDate = clampDayToMonth(today, loan.paymentDay);
+  const alreadyPaidThisMonth = transactions.some(
+    (transaction) =>
+      transaction.type === "LOAN_PAYMENT" &&
+      transaction.destinationAccountId === loan.accountId &&
+      isSameMonth(transaction.postedAt, today)
+  );
+
+  if (alreadyPaidThisMonth) {
+    return clampDayToMonth(addMonths(today, 1), loan.paymentDay);
+  }
+
+  return currentMonthDueDate;
+}
+
+function getCurrentCardDueDate(card: CreditCard, now: Date) {
+  const today = startOfDay(now);
+
+  if (card.nextDueDate) {
+    return startOfDay(card.nextDueDate);
+  }
+
+  return clampDayToMonth(today, card.paymentDueDay);
+}
+
+function buildScheduledObligations({
+  now,
+  transactions,
+  recurringExpenses,
+  loans,
+  cards,
+  goals,
+  installmentPayments,
+  months = 12
+}: {
+  now: Date;
+  transactions: TransactionWithCategory[];
+  recurringExpenses: RecurringExpense[];
+  loans: Loan[];
+  cards: CreditCard[];
+  goals: SavingsGoal[];
+  installmentPayments: (InstallmentPayment & { purchase: InstallmentPurchase })[];
+  months?: number;
+}) {
+  const horizonStart = startOfDay(now);
+  const horizonEnd = endMonth(addMonths(startOfMonth(now), months - 1));
+  const obligations: ScheduledObligation[] = [];
+
+  for (const expense of recurringExpenses.filter((item) => item.isActive)) {
+    let dueDate = startOfDay(expense.nextDueDate);
+
+    while (dueDate < horizonStart) {
+      dueDate = advanceRecurringDate(dueDate, expense.frequency);
+    }
+
+    while (dueDate <= horizonEnd) {
+      obligations.push({
+        title: expense.name,
+        dueDate,
+        amount: toNumber(expense.amount),
+        bucket: "fixed",
+        kind: "Fijo"
+      });
+
+      dueDate = advanceRecurringDate(dueDate, expense.frequency);
+    }
+  }
+
+  for (const loan of loans) {
+    let dueDate = getCurrentLoanDueDate(loan, now, transactions);
+
+    while (dueDate <= horizonEnd) {
+      obligations.push({
+        title: loan.name,
+        dueDate,
+        amount: toNumber(loan.monthlyPayment),
+        bucket: "debt",
+        kind: "Préstamo"
+      });
+
+      dueDate = clampDayToMonth(addMonths(dueDate, 1), loan.paymentDay);
+    }
+  }
+
+  for (const card of cards) {
+    const amount = getCardCommittedAmount(card);
+
+    if (amount <= 0) {
+      continue;
+    }
+
+    let dueDate = getCurrentCardDueDate(card, now);
+
+    while (dueDate <= horizonEnd) {
+      obligations.push({
+        title: card.name,
+        dueDate,
+        amount,
+        bucket: "debt",
+        kind: "Tarjeta"
+      });
+
+      dueDate = clampDayToMonth(addMonths(dueDate, 1), card.paymentDueDay);
+    }
+  }
+
+  for (const payment of installmentPayments) {
+    if (payment.isPaid) {
+      continue;
+    }
+
+    const dueDate = payment.dueDate < horizonStart ? horizonStart : payment.dueDate;
+
+    if (dueDate > horizonEnd) {
+      continue;
+    }
+
+    obligations.push({
+      title: payment.purchase.title,
+      dueDate,
+      amount: toNumber(payment.amount),
+      bucket: "installments",
+      kind: "MSI"
+    });
+  }
+
+  for (let index = 0; index < months; index += 1) {
+    const monthDate = addMonths(startOfMonth(now), index);
+    const dueDate = clampDayToMonth(monthDate, now.getDate());
+
+    for (const goal of goals) {
+      const amount = toNumber(goal.monthlySuggestedContribution);
+      if (amount <= 0) {
+        continue;
+      }
+
+      obligations.push({
+        title: goal.name,
+        dueDate,
+        amount,
+        bucket: "savings",
+        kind: "Ahorro"
+      });
+    }
+  }
+
+  return obligations.sort((left, right) => left.dueDate.getTime() - right.dueDate.getTime());
 }
 
 function readNumberConfig(config: unknown, key: string) {
@@ -251,21 +452,25 @@ async function getBaseData(userId: string) {
 }
 
 function buildProjection({
+  now,
   transactions,
   recurringExpenses,
   loans,
+  cards,
   goals,
   installmentPayments,
   months = 12
 }: {
+  now: Date;
   transactions: TransactionWithCategory[];
   recurringExpenses: RecurringExpense[];
   loans: Loan[];
+  cards: CreditCard[];
   goals: SavingsGoal[];
   installmentPayments: (InstallmentPayment & { purchase: InstallmentPurchase })[];
   months?: number;
 }) {
-  const currentMonth = firstDayOfMonth();
+  const currentMonth = firstDayOfMonth(now);
   const incomeTransactions = transactions.filter((item) => item.type === "INCOME");
   const averageMonthlyIncome =
     incomeTransactions.reduce((sum, item) => sum + toNumber(item.amount), 0) / 3 || 0;
@@ -278,22 +483,33 @@ function buildProjection({
   );
   const averageMonthlyVariable =
     variableExpenses.reduce((sum, item) => sum + toNumber(item.amount), 0) / 3 || 0;
+  const obligations = buildScheduledObligations({
+    now,
+    transactions,
+    recurringExpenses,
+    loans,
+    cards,
+    goals,
+    installmentPayments,
+    months
+  });
 
   return Array.from({ length: months }).map((_, index) => {
     const monthDate = addMonths(currentMonth, index);
     const monthKey = monthDate.toISOString();
-    const fixed = recurringExpenses.reduce(
-      (sum, item) => sum + getMonthlyRecurringAmount(item.frequency, toNumber(item.amount)),
-      0
-    );
-    const debt = loans.reduce((sum, loan) => sum + toNumber(loan.monthlyPayment), 0);
-    const installments = installmentPayments
-      .filter((payment) => isSameMonth(payment.chargeMonth, monthDate))
-      .reduce((sum, payment) => sum + toNumber(payment.amount), 0);
-    const savings = goals.reduce(
-      (sum, goal) => sum + toNumber(goal.monthlySuggestedContribution),
-      0
-    );
+    const monthObligations = obligations.filter((item) => isSameMonth(item.dueDate, monthDate));
+    const fixed = monthObligations
+      .filter((item) => item.bucket === "fixed")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const debt = monthObligations
+      .filter((item) => item.bucket === "debt")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const installments = monthObligations
+      .filter((item) => item.bucket === "installments")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const savings = monthObligations
+      .filter((item) => item.bucket === "savings")
+      .reduce((sum, item) => sum + item.amount, 0);
     const income = averageMonthlyIncome;
     const variable = averageMonthlyVariable;
     const committed = fixed + debt + installments + savings;
@@ -437,9 +653,11 @@ function getExpenseSummary(
 function buildAutomaticInsights(base: Awaited<ReturnType<typeof getBaseData>>) {
   const monthStart = firstDayOfMonth(base.now);
   const projection = buildProjection({
+    now: base.now,
     transactions: base.transactions,
     recurringExpenses: base.recurringExpenses,
     loans: base.loans,
+    cards: base.cards,
     goals: base.goals,
     installmentPayments: base.installmentPayments
   });
@@ -459,25 +677,31 @@ function buildAutomaticInsights(base: Awaited<ReturnType<typeof getBaseData>>) {
       toNumber(item.amount) <= 250
   );
   const smallExpenseTotal = smallExpenses.reduce((sum, item) => sum + toNumber(item.amount), 0);
-  const nextFortnightNeed =
-    base.cards.reduce((sum, card) => sum + toNumber(card.statementBalance), 0) / 2 +
-    base.loans.reduce((sum, loan) => sum + toNumber(loan.monthlyPayment), 0) / 2 +
-    base.recurringExpenses.reduce((sum, expense) => sum + toNumber(expense.amount), 0) / 2;
-  const upcomingWeekPayments = [
-    ...base.cards.map((card) => ({
-      dueDate: card.nextDueDate ?? base.now,
-      amount: toNumber(card.statementBalance)
-    })),
-    ...base.loans.map((loan) => ({
-      dueDate: addDays(firstDayOfMonth(base.now), loan.paymentDay),
-      amount: toNumber(loan.monthlyPayment)
-    })),
-    ...base.recurringExpenses.map((expense) => ({
-      dueDate: expense.nextDueDate,
-      amount: toNumber(expense.amount)
-    }))
-  ]
-    .filter((item) => item.dueDate >= base.now && item.dueDate <= addDays(base.now, 7))
+  const obligations = buildScheduledObligations({
+    now: base.now,
+    transactions: base.transactions,
+    recurringExpenses: base.recurringExpenses,
+    loans: base.loans,
+    cards: base.cards,
+    goals: base.goals,
+    installmentPayments: base.installmentPayments,
+    months: 3
+  });
+  const nextFortnightNeed = obligations
+    .filter(
+      (item) =>
+        item.bucket !== "savings" &&
+        item.dueDate >= startOfDay(base.now) &&
+        item.dueDate <= addDays(base.now, 15)
+    )
+    .reduce((sum, item) => sum + item.amount, 0);
+  const upcomingWeekPayments = obligations
+    .filter(
+      (item) =>
+        item.bucket !== "savings" &&
+        item.dueDate >= startOfDay(base.now) &&
+        item.dueDate <= addDays(base.now, 7)
+    )
     .reduce((sum, item) => sum + item.amount, 0);
 
   const budgetUsage = buildBudgetUsage(base.budgets, base.transactions);
@@ -621,20 +845,16 @@ function evaluateFinancialRules(
   const monthStart = firstDayOfMonth(base.now);
   const monthlyIncome = projection[0]?.income ?? 0;
   const activeCommitmentPct = projection[0]?.commitmentPct ?? 0;
-  const upcomingPayments = [
-    ...base.cards.map((card) => ({
-      dueDate: card.nextDueDate ?? base.now,
-      amount: toNumber(card.statementBalance)
-    })),
-    ...base.loans.map((loan) => ({
-      dueDate: addDays(firstDayOfMonth(base.now), loan.paymentDay),
-      amount: toNumber(loan.monthlyPayment)
-    })),
-    ...base.recurringExpenses.map((expense) => ({
-      dueDate: expense.nextDueDate,
-      amount: toNumber(expense.amount)
-    }))
-  ];
+  const upcomingPayments = buildScheduledObligations({
+    now: base.now,
+    transactions: base.transactions,
+    recurringExpenses: base.recurringExpenses,
+    loans: base.loans,
+    cards: base.cards,
+    goals: base.goals,
+    installmentPayments: base.installmentPayments,
+    months: 2
+  }).filter((item) => item.bucket !== "savings");
 
   const alerts: RealtimeInsight[] = [];
 
@@ -726,9 +946,11 @@ function evaluateFinancialRules(
 
 function compileRealtimeInsights(base: Awaited<ReturnType<typeof getBaseData>>) {
   const projection = buildProjection({
+    now: base.now,
     transactions: base.transactions,
     recurringExpenses: base.recurringExpenses,
     loans: base.loans,
+    cards: base.cards,
     goals: base.goals,
     installmentPayments: base.installmentPayments
   });
@@ -754,9 +976,19 @@ function compileRealtimeInsights(base: Awaited<ReturnType<typeof getBaseData>>) 
 export async function getDashboardData(userId: string) {
   const base = await getBaseData(userId);
   const alerts = compileRealtimeInsights(base);
-  const monthStart = firstDayOfMonth();
-  const monthEnd = endMonth();
+  const monthStart = firstDayOfMonth(base.now);
+  const monthEnd = endMonth(base.now);
   const liquidTypes = new Set(["CHECKING", "DEBIT", "SAVINGS", "CASH"]);
+  const obligations = buildScheduledObligations({
+    now: base.now,
+    transactions: base.transactions,
+    recurringExpenses: base.recurringExpenses,
+    loans: base.loans,
+    cards: base.cards,
+    goals: base.goals,
+    installmentPayments: base.installmentPayments,
+    months: 3
+  });
   const availableBalance = base.accounts
     .filter((account) => liquidTypes.has(account.type))
     .reduce((sum, account) => sum + toNumber(account.availableBalance ?? account.currentBalance), 0);
@@ -783,47 +1015,29 @@ export async function getDashboardData(userId: string) {
     .filter((item) => item.status === "ACTIVE")
     .reduce((sum, item) => sum + toNumber(item.remainingBalance), 0);
   const totalDebt = cardsDebt + loansDebt + msiDebt;
-  const requiredThisMonth =
-    base.cards.reduce((sum, card) => sum + toNumber(card.statementBalance), 0) +
-    base.loans.reduce((sum, loan) => sum + toNumber(loan.monthlyPayment), 0) +
-    base.installmentPurchases
-      .filter((item) => item.status === "ACTIVE")
-      .reduce((sum, item) => sum + toNumber(item.monthlyAmount), 0);
+  const requiredThisMonth = obligations
+    .filter((item) => item.bucket !== "savings" && isSameMonth(item.dueDate, monthStart))
+    .reduce((sum, item) => sum + item.amount, 0);
 
   const projection = buildProjection({
+    now: base.now,
     transactions: base.transactions,
     recurringExpenses: base.recurringExpenses,
     loans: base.loans,
+    cards: base.cards,
     goals: base.goals,
     installmentPayments: base.installmentPayments
   });
 
-  const upcomingPayments = [
-    ...base.cards.map((card) => ({
-      title: card.name,
-      dueDate: card.nextDueDate?.toISOString() ?? new Date().toISOString(),
-      dueLabel: card.nextDueDate
-        ? card.nextDueDate.toLocaleDateString("es-MX")
-        : "Sin fecha",
-      amount: toNumber(card.statementBalance),
-      kind: "Tarjeta"
-    })),
-    ...base.loans.map((loan) => ({
-      title: loan.name,
-      dueDate: addDays(monthStart, loan.paymentDay).toISOString(),
-      dueLabel: addDays(monthStart, loan.paymentDay).toLocaleDateString("es-MX"),
-      amount: toNumber(loan.monthlyPayment),
-      kind: "Préstamo"
-    })),
-    ...base.recurringExpenses.map((expense) => ({
-      title: expense.name,
-      dueDate: expense.nextDueDate.toISOString(),
-      dueLabel: expense.nextDueDate.toLocaleDateString("es-MX"),
-      amount: toNumber(expense.amount),
-      kind: "Fijo"
+  const upcomingPayments = obligations
+    .filter((item) => item.bucket !== "savings")
+    .map((item) => ({
+      title: item.title,
+      dueDate: item.dueDate.toISOString(),
+      dueLabel: item.dueDate.toLocaleDateString("es-MX"),
+      amount: item.amount,
+      kind: item.kind
     }))
-  ]
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     .slice(0, 6);
 
   const debtItems = [
@@ -901,23 +1115,53 @@ export async function getDebtsPageData(userId: string) {
   const base = await getBaseData(userId);
   const alerts = compileRealtimeInsights(base);
   const settings = base.settings;
+  const monthStart = firstDayOfMonth(base.now);
+  const obligations = buildScheduledObligations({
+    now: base.now,
+    transactions: base.transactions,
+    recurringExpenses: base.recurringExpenses,
+    loans: base.loans,
+    cards: base.cards,
+    goals: base.goals,
+    installmentPayments: base.installmentPayments,
+    months: 3
+  });
+  const projection = buildProjection({
+    now: base.now,
+    transactions: base.transactions,
+    recurringExpenses: base.recurringExpenses,
+    loans: base.loans,
+    cards: base.cards,
+    goals: base.goals,
+    installmentPayments: base.installmentPayments,
+    months: 3
+  });
   const activeInstallments = base.installmentPurchases.filter((item) => item.status === "ACTIVE");
   const totalDebt =
     base.cards.reduce((sum, card) => sum + toNumber(card.payoffBalance), 0) +
     base.loans.reduce((sum, loan) => sum + toNumber(loan.currentBalance), 0) +
     activeInstallments.reduce((sum, item) => sum + toNumber(item.remainingBalance), 0);
-  const requiredThisMonth =
-    base.cards.reduce((sum, card) => sum + toNumber(card.statementBalance), 0) +
-    base.loans.reduce((sum, loan) => sum + toNumber(loan.monthlyPayment), 0) +
-    activeInstallments.reduce((sum, item) => sum + toNumber(item.monthlyAmount), 0);
-  const noInterestAmount = base.cards.reduce(
+  const requiredThisMonth = obligations
+    .filter(
+      (item) =>
+        (item.bucket === "debt" || item.bucket === "installments") &&
+        isSameMonth(item.dueDate, monthStart)
+    )
+    .reduce((sum, item) => sum + item.amount, 0);
+  const dueCardsThisMonth = base.cards.filter((card) =>
+    isSameMonth(getCurrentCardDueDate(card, base.now), monthStart)
+  );
+  const noInterestAmount = dueCardsThisMonth.reduce(
     (sum, card) => sum + toNumber(card.statementBalance),
     0
   );
-  const minimumDueAmount = base.cards.reduce(
+  const minimumDueAmount = dueCardsThisMonth.reduce(
     (sum, card) => sum + toNumber(card.minimumDueAmount),
     0
   );
+  const averageMonthlyDebtService =
+    projection.reduce((sum, month) => sum + month.debt + month.installments, 0) /
+      Math.max(projection.length, 1) || 0;
   const items = [
     ...base.cards.map((card) => ({
       id: card.id,
@@ -931,8 +1175,8 @@ export async function getDebtsPageData(userId: string) {
       ),
       helper:
         toNumber(card.minimumDueAmount) > 0
-          ? `Mínimo ${Math.round(toNumber(card.minimumDueAmount))} · no intereses ${Math.round(toNumber(card.statementBalance))}`
-          : `Pago para no intereses ${Math.round(toNumber(card.statementBalance))}`,
+          ? `Mínimo ${Math.round(toNumber(card.minimumDueAmount))} · no generar intereses ${Math.round(toNumber(card.statementBalance))}`
+          : `Pago para no generar intereses ${Math.round(toNumber(card.statementBalance))}`,
       href: `/cards/${card.id}`,
       reason: toNumber(card.annualInterestRate) > 40 ? "Avalancha" : "Snowball",
       metric: toNumber(card.annualInterestRate),
@@ -973,9 +1217,19 @@ export async function getDebtsPageData(userId: string) {
     requiredThisMonth: round(requiredThisMonth),
     noInterestAmount: round(noInterestAmount),
     minimumDueAmount: round(minimumDueAmount),
-    monthsToFreedom: Math.ceil(totalDebt / Math.max(requiredThisMonth, 1)),
+    monthsToFreedom: Math.ceil(totalDebt / Math.max(averageMonthlyDebtService, 1)),
     strategy: settings?.debtStrategy ?? "AVALANCHE",
     items,
+    paymentSchedule: obligations
+      .filter((item) => item.bucket === "debt" || item.bucket === "installments")
+      .map((item) => ({
+        title: item.title,
+        dueDate: item.dueDate.toISOString(),
+        dueLabel: item.dueDate.toLocaleDateString("es-MX"),
+        amount: round(item.amount),
+        kind: item.kind
+      }))
+      .slice(0, 8),
     simulatorContext: {
       debts: items.map((item) => ({
         id: item.id,
@@ -1050,19 +1304,36 @@ export async function getProjectionPageData(userId: string) {
   const base = await getBaseData(userId);
   const alerts = compileRealtimeInsights(base);
   const projection = buildProjection({
+    now: base.now,
     transactions: base.transactions,
     recurringExpenses: base.recurringExpenses,
     loans: base.loans,
+    cards: base.cards,
     goals: base.goals,
     installmentPayments: base.installmentPayments
+  });
+  const obligations = buildScheduledObligations({
+    now: base.now,
+    transactions: base.transactions,
+    recurringExpenses: base.recurringExpenses,
+    loans: base.loans,
+    cards: base.cards,
+    goals: base.goals,
+    installmentPayments: base.installmentPayments,
+    months: 2
   });
 
   return {
     projection,
     nextFortnightNeed: round(
-      base.cards.reduce((sum, card) => sum + toNumber(card.statementBalance), 0) / 2 +
-        base.loans.reduce((sum, loan) => sum + toNumber(loan.monthlyPayment), 0) / 2 +
-        base.recurringExpenses.reduce((sum, expense) => sum + toNumber(expense.amount), 0) / 2
+      obligations
+        .filter(
+          (item) =>
+            item.bucket !== "savings" &&
+            item.dueDate >= startOfDay(base.now) &&
+            item.dueDate <= addDays(base.now, 15)
+        )
+        .reduce((sum, item) => sum + item.amount, 0)
     ),
     nextMonthNeed: round(
       projection[0].fixed +
@@ -1094,9 +1365,11 @@ export async function getPlannedPurchasesPageData(userId: string) {
   const base = await getBaseData(userId);
   const alerts = compileRealtimeInsights(base);
   const projection = buildProjection({
+    now: base.now,
     transactions: base.transactions,
     recurringExpenses: base.recurringExpenses,
     loans: base.loans,
+    cards: base.cards,
     goals: base.goals,
     installmentPayments: base.installmentPayments
   });
@@ -1161,6 +1434,17 @@ export async function getCardDetailData(userId: string, cardId: string) {
   }
 
   const alerts = compileRealtimeInsights(base);
+  const sourceAccounts = base.accounts
+    .filter(
+      (account) =>
+        account.id !== card.accountId &&
+        ["CHECKING", "DEBIT", "SAVINGS", "CASH"].includes(account.type) &&
+        !account.isArchived
+    )
+    .map((account) => ({
+      id: account.id,
+      name: account.name
+    }));
   const activeInstallments = base.installmentPurchases.filter(
     (item) => item.creditCardId === card.id && item.status === "ACTIVE"
   );
@@ -1184,6 +1468,18 @@ export async function getCardDetailData(userId: string, cardId: string) {
     )
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
     .slice(0, 6);
+  const recentPayments = await prisma.transaction.findMany({
+    where: {
+      userId,
+      type: "CREDIT_CARD_PAYMENT",
+      destinationAccountId: card.accountId
+    },
+    include: {
+      sourceAccount: true
+    },
+    orderBy: { postedAt: "desc" },
+    take: 8
+  });
 
   const preview = getPurchaseCycleSummary({
     purchaseDate: new Date(),
@@ -1197,6 +1493,7 @@ export async function getCardDetailData(userId: string, cardId: string) {
 
   return {
     id: card.id,
+    accountId: card.accountId,
     name: card.name,
     bank: card.bank,
     statementClosingDay: card.statementClosingDay,
@@ -1210,6 +1507,14 @@ export async function getCardDetailData(userId: string, cardId: string) {
     nextDueDate: card.nextDueDate?.toISOString() ?? new Date().toISOString(),
     utilizationPct: percentage(toNumber(card.payoffBalance), toNumber(card.creditLimit)),
     alerts: filterInsights(alerts, "card", 4),
+    sourceAccounts,
+    recentPayments: recentPayments.map((payment) => ({
+      id: payment.id,
+      postedAt: payment.postedAt.toISOString(),
+      amount: toNumber(payment.amount),
+      sourceAccountName: payment.sourceAccount?.name ?? undefined,
+      description: payment.description
+    })),
     simulatorContext: {
       closingDay: card.statementClosingDay,
       dueDay: card.paymentDueDay,

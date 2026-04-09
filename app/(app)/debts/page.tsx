@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { getDebtsPageData } from "@/server/dashboard";
 import { getLoansManagementData } from "@/server/management";
@@ -39,16 +39,16 @@ export default async function DebtsPage() {
           <p className="text-sm leading-6 text-ink-muted">Incluye tarjetas, préstamo personal y carga MSI pendiente.</p>
         </SectionCard>
         <SectionCard title="Pago del mes" description={formatCurrency(data.requiredThisMonth)}>
-          <p className="text-sm leading-6 text-ink-muted">Pagos comprometidos entre tarjeta, préstamo y mensualidades activas.</p>
+          <p className="text-sm leading-6 text-ink-muted">Solo obligaciones de deuda que vencen en el mes actual según sus fechas reales.</p>
         </SectionCard>
         <SectionCard title="Mínimos tarjeta" description={formatCurrency(data.minimumDueAmount)}>
-          <p className="text-sm leading-6 text-ink-muted">Base mínima vigente de tus cortes actuales.</p>
+          <p className="text-sm leading-6 text-ink-muted">Suma de mínimos de tarjetas cuyo vencimiento cae este mes.</p>
         </SectionCard>
-        <SectionCard title="No intereses" description={formatCurrency(data.noInterestAmount)}>
-          <p className="text-sm leading-6 text-ink-muted">Monto para mantener el costo financiero contenido este ciclo.</p>
+        <SectionCard title="Pago para no generar intereses" description={formatCurrency(data.noInterestAmount)}>
+          <p className="text-sm leading-6 text-ink-muted">Suma de pagos vigentes para no generar intereses con vencimiento este mes.</p>
         </SectionCard>
         <SectionCard title="Meses para salir" description={`${data.monthsToFreedom} meses`}>
-          <p className="text-sm leading-6 text-ink-muted">Estimación base según pagos actuales y estrategia seleccionada.</p>
+          <p className="text-sm leading-6 text-ink-muted">Estimación base usando tu servicio mensual de deuda proyectado.</p>
         </SectionCard>
       </section>
 
@@ -98,6 +98,30 @@ export default async function DebtsPage() {
           </div>
         </SectionCard>
       </section>
+
+      <SectionCard title="Calendario de deuda" description="Próximos pagos de tarjetas, préstamos y MSI">
+        {data.paymentSchedule.length ? (
+          <div className="space-y-3">
+            {data.paymentSchedule.map((payment) => (
+              <div key={`${payment.title}-${payment.dueDate}-${payment.kind}`} className="flex items-center justify-between rounded-2xl border border-black/5 bg-white/70 px-4 py-3">
+                <div>
+                  <p className="font-medium text-surface-strong">{payment.title}</p>
+                  <p className="text-sm text-ink-muted">{formatDate(payment.dueDate)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-surface-strong">{formatCurrency(payment.amount)}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-ink-soft">{payment.kind}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="Sin pagos próximos"
+            description="Cuando existan vencimientos de tarjetas, préstamos o MSI, aparecerán aquí."
+          />
+        )}
+      </SectionCard>
 
       <SectionCard title="Simulador de pago extra" description="Cuánto aceleras la salida si atacas una deuda hoy">
         <DebtAcceleratorSimulator debts={data.simulatorContext.debts} />

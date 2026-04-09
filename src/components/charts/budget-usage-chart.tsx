@@ -17,7 +17,7 @@ export function BudgetUsageChart({ data }: { data: BudgetChartItem[] }) {
           <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
           <YAxis tickLine={false} axisLine={false} fontSize={12} />
           <Bar dataKey="limit" fill="rgba(31,41,55,0.10)" radius={[10, 10, 0, 0]} />
-          <Bar dataKey="spent" fill="#335C4B" radius={[10, 10, 0, 0]} />
+          <Bar dataKey="spent" fill="#1098F7" radius={[10, 10, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

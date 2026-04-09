@@ -376,6 +376,7 @@ Configura estas variables en tu proveedor:
 
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB?schema=public"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:PORT/DB?schema=public"
 AUTH_SECRET="usa-un-secreto-largo-de-32-caracteres-o-mas"
 APP_URL="https://tu-dominio.com"
 ```
@@ -384,7 +385,7 @@ APP_URL="https://tu-dominio.com"
 
 1. Sube este proyecto a GitHub.
 2. Crea un proyecto en Vercel e impórtalo desde ese repo.
-3. En Vercel, agrega `DATABASE_URL`, `AUTH_SECRET` y `APP_URL`.
+3. En Vercel, agrega `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET` y `APP_URL`.
 4. Usa como dominio principal tu dominio real, por ejemplo `https://finanzas.tudominio.com`.
 5. Ejecuta las migraciones de producción:
 
@@ -404,6 +405,7 @@ npm run db:seed
 Notas:
 
 - `postinstall` ya corre `prisma generate`, así que el cliente Prisma se genera en install.
+- si usas Supabase, `DATABASE_URL` debe ser la URL para runtime y `DIRECT_URL` una conexión directa o session pooler para migraciones
 - En producción usa `prisma migrate deploy`, no `prisma migrate dev`.
 - Si vas a usar datos reales, no corras `db:seed` sobre una base ya poblada.
 - Hay un [vercel.json](/Users/alonsoreyes/Documents/GastosApp/vercel.json) mínimo listo para este proyecto.
@@ -421,6 +423,7 @@ El repo ahora incluye [production-deploy.yml](/Users/alonsoreyes/Documents/Gasto
 Secrets requeridos en GitHub:
 
 - `DATABASE_URL`
+- `DIRECT_URL`
 - `AUTH_SECRET`
 - `APP_URL`
 - `VERCEL_TOKEN`
